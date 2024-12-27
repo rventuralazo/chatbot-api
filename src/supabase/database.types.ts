@@ -42,6 +42,7 @@ export type Database = {
           paused: boolean;
           phone: string;
           theadId: string | null;
+          notes: string | null;
         };
         Insert: {
           created_at?: string;
@@ -69,6 +70,7 @@ export type Database = {
           imageUrl: string | null;
           isBot: boolean;
           message: string | null;
+          isRead: boolean;
         };
         Insert: {
           chat?: number | null;
@@ -77,6 +79,7 @@ export type Database = {
           imageUrl?: string | null;
           isBot: boolean;
           message?: string | null;
+          isRead: boolean;
         };
         Update: {
           chat?: number | null;
@@ -85,6 +88,7 @@ export type Database = {
           imageUrl?: string | null;
           isBot?: boolean;
           message?: string | null;
+          isRead: boolean;
         };
         Relationships: [
           {

@@ -49,42 +49,64 @@ export class ChatbotService {
     return addKeyword<Provider, Database>(EVENTS.WELCOME).addAction(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       async (ctx, { flowDynamic, state, provider }) => {
-        let thread = state.get('thread') ?? null;
-        //const assistants = await retrieveAssistants(assistantId);
-        if (!thread) {
-          const threadObject = await this.openaiService.createThread();
-          thread = threadObject.id;
-          await state.update({ thread });
-        }
-        console.dir(state);
-
+        // let thread = state.get('thread') ?? null;
+        // //const assistants = await retrieveAssistants(assistantId);
+        // if (!thread) {
+        //   const threadObject = await this.openaiService.createThread();
+        //   thread = threadObject.id;
+        //   await state.update({ thread });
+        // }
+        // console.dir(state);
         const savedChat = await this.chatService.getPhoneChat(
           ctx.from,
           ctx.name,
-          thread,
         );
+        if (!savedChat.theadId) {
+          const threadObject = await this.openaiService.createThread();
+          const thread = threadObject.id;
+          await this.chatService.updateChatTheadId(savedChat.id, thread);
+          await state.update({ thread });
+        } else {
+          const thread = savedChat.theadId;
+          await this.openaiService.clearAllRuns(thread);
+          await state.update({ thread });
+        }
         await this.chatService.saveChatMessage(savedChat.id, {
           message: ctx.body,
           isBot: false,
         });
-        await typing(ctx, provider);
-
-        // const botResponse = 'Hello, I am a chatbot!';
-        // flowDynamic([{ body: botResponse }]);
-        // await this.chatService.saveChatMessage(savedChat.id, {
-        //   message: botResponse,
-        //   isBot: true,
-        // });
-        const response = await this.openaiService.toAsk(ctx.body, state);
-        const chunks = response.split(/(?<!\d)\.\s+/g);
-        for (const chunk of chunks) {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          await typing(ctx, provider);
-          await flowDynamic([{ body: chunk.trim() }]);
-          await this.chatService.saveChatMessage(savedChat.id, {
-            message: chunk.trim(),
-            isBot: true,
-          });
+        if (!savedChat.paused) {
+          // await typing(ctx, provider);
+          // const botResponse = 'Hello, I am a chatbot!';
+          // flowDynamic([{ body: botResponse }]);
+          // await this.chatService.saveChatMessage(savedChat.id, {
+          //   message: botResponse,
+          //   isBot: true,
+          // });
+          try {
+            const response = await this.openaiService.toAsk(
+              ctx.body,
+              state,
+              ctx.from,
+            );
+            const chunks = response.split(/(?<!\d)\.\s+/g);
+            for (const chunk of chunks) {
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+              await typing(ctx, provider);
+              if (chunk.trim() === 'PAUSE_CHATBOT') {
+                console.log('PAUSE_CHATBOT');
+                await this.chatService.pauseChat(savedChat.id);
+              } else {
+                await flowDynamic([{ body: chunk.trim() }]);
+                await this.chatService.saveChatMessage(savedChat.id, {
+                  message: chunk.trim(),
+                  isBot: true,
+                });
+              }
+            }
+          } catch (error) {
+            console.log(error);
+          }
         }
       },
     );

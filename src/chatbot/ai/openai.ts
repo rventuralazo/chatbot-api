@@ -129,6 +129,25 @@ openai.beta.assistants.update(OPENAI_ASSISTANT_ID, {
       type: 'function',
       function: {
         strict: true,
+        name: 'getEbayProductById',
+        description: 'Obtiene información de un producto de Amazon por su ID',
+        parameters: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'string',
+              description: 'ID del producto',
+            },
+          },
+          additionalProperties: false,
+          required: ['id'],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        strict: true,
         name: 'getMyOrders',
         description: 'Obtiene los detalles de tus pedidos',
         parameters: {

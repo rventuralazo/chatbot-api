@@ -8,6 +8,8 @@ import { SupabaseService } from './supabase/supabase.service';
 import { WebsocketModule } from './websocket/websocket.module';
 import { OpenaiModule } from './openai/openai.module';
 import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
+import { FilesModule } from './files/files.module';
 @Module({
   imports: [
     AuthModule,
@@ -16,6 +18,8 @@ import { AuthModule } from './auth/auth.module';
     ChatModule,
     WebsocketModule,
     OpenaiModule,
+    UsersModule,
+    FilesModule,
   ],
   controllers: [AppController],
   providers: [AppService, SupabaseService],
