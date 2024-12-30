@@ -51,4 +51,22 @@ export class UsersService {
     const { data } = await this.supabase.admin.deleteUser(id);
     return data;
   }
+
+  async updateProfilePhoto(userId: string, file: Express.Multer.File) {
+    const uploadResult = await this.supabase
+      .getSupabase()
+      .storage.from('profile')
+      .upload('avatar.png', file.buffer.toString('base64'), {
+        contentType: file.mimetype,
+      });
+    console.log(uploadResult);
+    if (uploadResult.data) {
+      const { data } = await this.supabase.admin.updateUserById(userId, {
+        user_metadata: { avatar: uploadResult.data.path },
+      });
+      return data;
+    } else {
+      return false;
+    }
+  }
 }

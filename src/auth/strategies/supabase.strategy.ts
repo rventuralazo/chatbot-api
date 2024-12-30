@@ -8,7 +8,7 @@ export class SupabaseStrategy extends PassportStrategy(Strategy) {
   public constructor(private readonly configService: ConfigService) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      ignoreExpiration: false,
+      ignoreExpiration: true,
       secretOrKey: configService.get<string>('JWT_SECRET'),
     });
   }
@@ -18,6 +18,7 @@ export class SupabaseStrategy extends PassportStrategy(Strategy) {
   }
 
   authenticate(req) {
-    super.authenticate(req);
+    const res = super.authenticate(req);
+    return res;
   }
 }

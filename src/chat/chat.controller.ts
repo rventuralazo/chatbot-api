@@ -1,11 +1,22 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { ChatService } from './chat.service';
 import axios from 'axios';
 import { PageOptionsDto } from '../common/dtos/page-options.dto';
 import { PageDto, PageMetaDto } from '../common/dtos/page-meta.dto';
+import { AuthGuard } from '@nestjs/passport';
+// import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
 
 @Controller('api/chat')
+@UseGuards(AuthGuard('jwt'))
 export class ChatController {
   constructor(
     private readonly supabase: SupabaseService,
@@ -108,7 +119,7 @@ export class ChatController {
       .eq('id', id);
   }
   @Get(':id/mark-as-read')
-  async markMessageAsRead(id: number) {
+  async markMessageAsRead(@Param('id') id: number) {
     return await this.supabase
       .getSupabase()
       .from('chat_message')

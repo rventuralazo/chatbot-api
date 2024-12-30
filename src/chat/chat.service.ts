@@ -40,7 +40,17 @@ export class ChatService {
 
   async saveChatMessage(
     chatId: number,
-    { message, isBot }: { message: string; isBot: boolean },
+    {
+      message,
+      isBot,
+      mediaUrl,
+      mediaType,
+    }: {
+      message: string;
+      isBot: boolean;
+      mediaUrl?: string;
+      mediaType?: string;
+    },
   ) {
     await this.supabase
       .getSupabase()
@@ -49,6 +59,8 @@ export class ChatService {
         chat: chatId,
         message: message,
         isBot,
+        media_url: mediaUrl,
+        media_type: mediaType,
         isRead: isBot ? true : false,
       });
     this.websocket.server.emit('message', {

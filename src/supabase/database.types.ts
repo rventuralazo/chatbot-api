@@ -7,31 +7,6 @@ export type Json =
   | Json[];
 
 export type Database = {
-  graphql_public: {
-    Tables: {
-      [_ in never]: never;
-    };
-    Views: {
-      [_ in never]: never;
-    };
-    Functions: {
-      graphql: {
-        Args: {
-          operationName?: string;
-          query?: string;
-          variables?: Json;
-          extensions?: Json;
-        };
-        Returns: Json;
-      };
-    };
-    Enums: {
-      [_ in never]: never;
-    };
-    CompositeTypes: {
-      [_ in never]: never;
-    };
-  };
   public: {
     Tables: {
       chat: {
@@ -39,15 +14,16 @@ export type Database = {
           created_at: string;
           id: number;
           name: string | null;
+          notes: string | null;
           paused: boolean;
           phone: string;
           theadId: string | null;
-          notes: string | null;
         };
         Insert: {
           created_at?: string;
           id?: number;
           name?: string | null;
+          notes?: string | null;
           paused?: boolean;
           phone: string;
           theadId?: string | null;
@@ -56,6 +32,7 @@ export type Database = {
           created_at?: string;
           id?: number;
           name?: string | null;
+          notes?: string | null;
           paused?: boolean;
           phone?: string;
           theadId?: string | null;
@@ -69,8 +46,10 @@ export type Database = {
           id: number;
           imageUrl: string | null;
           isBot: boolean;
+          isRead: boolean | null;
+          media_type: string | null;
+          media_url: string | null;
           message: string | null;
-          isRead: boolean;
         };
         Insert: {
           chat?: number | null;
@@ -78,8 +57,10 @@ export type Database = {
           id?: number;
           imageUrl?: string | null;
           isBot: boolean;
+          isRead?: boolean | null;
+          media_type?: string | null;
+          media_url?: string | null;
           message?: string | null;
-          isRead: boolean;
         };
         Update: {
           chat?: number | null;
@@ -87,8 +68,10 @@ export type Database = {
           id?: number;
           imageUrl?: string | null;
           isBot?: boolean;
+          isRead?: boolean | null;
+          media_type?: string | null;
+          media_url?: string | null;
           message?: string | null;
-          isRead: boolean;
         };
         Relationships: [
           {

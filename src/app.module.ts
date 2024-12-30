@@ -10,10 +10,16 @@ import { OpenaiModule } from './openai/openai.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { FilesModule } from './files/files.module';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 @Module({
   imports: [
     AuthModule,
     ConfigModule.forRoot({ isGlobal: true }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'storage/media'),
+      serveRoot: '/media',
+    }),
     ChatbotModule,
     ChatModule,
     WebsocketModule,

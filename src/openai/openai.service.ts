@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import OpenAI from 'openai';
 
 @Injectable()
@@ -124,8 +124,9 @@ export class OpenAIService {
             toolOutputs.push(toolOutput);
             completed = true;
           }
-          if (name === 'getMyOrders') {
+          if (name === 'getUserOrders') {
             const orders = await this.getMyOrders(phone);
+            console.log('User Orders', orders);
             const toolOutput = {
               tool_call_id: toolCall.id,
               output: orders,
@@ -141,6 +142,7 @@ export class OpenAIService {
             completed = true;
           }
           if (!completed) {
+            console.log('Function Name', name);
             console.log('SIN FUNCION');
             const toolOutput = {
               tool_call_id: toolCall.id,
@@ -371,7 +373,12 @@ export class OpenAIService {
           })
           .join('\n')}
       `;
-    } catch {
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        if (error.response?.status === 404) {
+          return 'No se encontraron pedidos.';
+        }
+      }
       return 'En este momento no se puede consultar sus pedidos, intente mas tarde, revisa que tu numero este registrado en tu cuenta de CompraLolo';
     }
   }
@@ -464,8 +471,8 @@ export class OpenAIService {
           type: 'function',
           function: {
             strict: true,
-            name: 'getMyOrders',
-            description: 'Obtiene los detalles de tus pedidos',
+            name: 'getUserOrders',
+            description: 'Obtiene los pedidos del usuario',
             parameters: {
               type: 'object',
               additionalProperties: false,

@@ -7,14 +7,14 @@ import { SupabaseStrategy } from './strategies/supabase.strategy';
 
 @Module({
   imports: [
-    PassportModule,
+    PassportModule.register({ defaultStrategy: 'jwt' }),
     ConfigModule,
     JwtModule.registerAsync({
       useFactory: (configService: ConfigService) => {
         return {
           global: true,
           secret: configService.get<string>('JWT_SECRET'),
-          signOptions: { expiresIn: 40000 },
+          signOptions: { expiresIn: '1d' },
         };
       },
       inject: [ConfigService],
