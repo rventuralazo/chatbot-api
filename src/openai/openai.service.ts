@@ -501,7 +501,7 @@ export class OpenAIService {
   async improveInstructions(newInstruction: string) {
     const instrucctions = await this.getActualInstructions();
     const response = await this.openai.chat.completions.create({
-      model: 'gpt-3.5-turbo-1106',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -511,7 +511,7 @@ export class OpenAIService {
           //     #### Fin del texto ####
           //   `,
           content:
-            'Agrega las mejoras que pida el usuario a las instrucciones proporcionadas, solo agrega o modifica lo que pide el usuario, no hagas correcciones en las instrucciones que no te pida el usuario',
+            'Agrega las mejoras o cambios que pida el usuario a las instrucciones proporcionadas, solo agrega o modifica lo que pide el usuario, no hagas correcciones o quites texto en las instrucciones que no te pida el usuario, responde con la nueva la estructura del texto',
         },
         {
           role: 'user',
