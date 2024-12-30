@@ -126,4 +126,12 @@ export class ChatController {
       .update({ isRead: true })
       .eq('id', id);
   }
+  @Post(':id/notes')
+  async addNote(@Param('id') id: number, @Body() body: { note: string }) {
+    return await this.supabase
+      .getSupabase()
+      .from('chat')
+      .update({ notes: body.note })
+      .eq('id', id);
+  }
 }
