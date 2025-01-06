@@ -7,15 +7,13 @@ import {
 } from '@builderbot/bot';
 import { typing } from './utils/presence';
 import { BaileysProvider as Provider } from '@builderbot/provider-baileys';
-// import { TelegramProvider } from '@builderbot-plugins/telegram';
 import { MemoryDB as Database } from '@builderbot/bot';
-// import welcomeFlow from './flows/welcome';
-// import { MetaProvider } from '@builderbot/provider-meta';
 import { Injectable } from '@nestjs/common';
 import { ChatService } from '../chat/chat.service';
 import { OpenAIService } from '../openai/openai.service';
 import { WebsocketGateway } from '../websocket/websocket.gateway';
 import { createMessageQueue, QueueConfig } from './utils/fast-entires';
+import { FilesService } from '../files/files.service';
 const queueConfig: QueueConfig = { gapMilliseconds: 5000 };
 const enqueueMessage = createMessageQueue(queueConfig);
 @Injectable()
@@ -26,11 +24,11 @@ export class ChatbotService {
     private readonly chatService: ChatService,
     private readonly openaiService: OpenAIService,
     private readonly websocket: WebsocketGateway,
+    private readonly filesService: FilesService,
   ) {
     this.initialize();
   }
   async initialize() {
-    console.log('Initializing chatbot');
     const adapterFlow = createFlow([
       this.getWelcomeFlow(),
       this.getMediaFlow(),
@@ -47,12 +45,15 @@ export class ChatbotService {
       this.connectionStatus = data;
       this.websocket.server.emit('connection_status', data);
       console.log(data);
+
+      // console.log(myPicture);
     });
     provider.on('require_action', (data) => {
       this.websocket.server.emit('action_required', data);
       this.connectionStatus = null;
       this.requireAction = data;
     });
+
     httpServer(3001);
     adapterProvider.server.post(
       '/v1/messages',
@@ -73,6 +74,17 @@ export class ChatbotService {
             ctx.from,
             ctx.name,
           );
+          console.log(savedChat);
+          if (savedChat.isNew) {
+            try {
+              const pictureUrl = await provider.vendor.profilePictureUrl(
+                ctx.key?.remoteJid,
+                'image',
+                10000,
+              );
+              await this.chatService.updateUrlPicture(savedChat.id, pictureUrl);
+            } catch {}
+          }
           if (!savedChat.theadId) {
             const threadObject = await this.openaiService.createThread();
             const thread = threadObject.id;
@@ -130,26 +142,32 @@ export class ChatbotService {
       EVENTS.DOCUMENT,
       EVENTS.VOICE_NOTE,
     ]).addAction(async (ctx, { provider }) => {
-      const savedChat = await this.chatService.getPhoneChat(ctx.from, ctx.name);
-      const localPath = await provider.saveFile(ctx, {
-        path: 'storage/media',
-      });
-      console.log(
-        ctx.message?.documentWithCaptionMessage?.message?.documentMessage,
-      );
-      await this.chatService.saveChatMessage(savedChat.id, {
-        message:
-          (ctx as any).message?.imageMessage?.caption ??
-          ctx.message?.documentWithCaptionMessage?.message?.documentMessage
-            ?.caption,
-        isBot: false,
-        mediaUrl: 'media/' + localPath.split('/').pop(),
-        mediaType:
-          (ctx as any).message?.imageMessage?.mimetype ??
-          ctx.message?.documentWithCaptionMessage?.message?.documentMessage
-            ?.mimetype,
-      });
-      console.log(localPath);
+      try {
+        const savedChat = await this.chatService.getPhoneChat(
+          ctx.from,
+          ctx.name,
+        );
+        const localPath = await provider.saveFile(ctx, {
+          path: 'storage/media',
+        });
+        // const savedPath = 'media/' + localPath.split('/').pop();
+        const fullPath = await this.filesService.uploadWhatsappMedia(localPath);
+        await this.chatService.saveChatMessage(savedChat.id, {
+          message:
+            (ctx as any).message?.imageMessage?.caption ??
+            ctx.message?.documentWithCaptionMessage?.message?.documentMessage
+              ?.caption,
+          isBot: false,
+          mediaUrl: fullPath,
+          mediaType:
+            (ctx as any).message?.imageMessage?.mimetype ??
+            ctx.message?.documentWithCaptionMessage?.message?.documentMessage
+              ?.mimetype,
+        });
+        console.log(fullPath);
+      } catch (error) {
+        console.log(error);
+      }
     });
   }
   getConnectionStatus() {

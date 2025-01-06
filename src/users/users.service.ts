@@ -3,7 +3,8 @@ import { PageOptionsDto } from '../common/dtos/page-options.dto';
 import { SupabaseService } from '../supabase/supabase.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-
+import { decode } from 'base64-arraybuffer';
+import { randomBytes } from 'node:crypto';
 @Injectable()
 export class UsersService {
   constructor(private readonly supabase: SupabaseService) {}
@@ -53,13 +54,17 @@ export class UsersService {
   }
 
   async updateProfilePhoto(userId: string, file: Express.Multer.File) {
+    const filebase64 = decode(file.buffer.toString('base64'));
     const uploadResult = await this.supabase
       .getSupabase()
       .storage.from('profile')
-      .upload('avatar.png', file.buffer.toString('base64'), {
-        contentType: file.mimetype,
-      });
-    console.log(uploadResult);
+      .upload(
+        `pictures/${randomBytes(10).toString('hex')}_${file.originalname}`,
+        filebase64,
+        {
+          contentType: file.mimetype,
+        },
+      );
     if (uploadResult.data) {
       const { data } = await this.supabase.admin.updateUserById(userId, {
         user_metadata: { avatar: uploadResult.data.path },

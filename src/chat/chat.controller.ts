@@ -36,32 +36,7 @@ export class ChatController {
 
   @Get()
   async getChatList(@Query() pageOptions: PageOptionsDto) {
-    const query = this.supabase.getSupabase().from('chat');
-    await query.select('*', { count: 'exact', head: true });
-
-    const chats = await query
-      .select()
-      .range(+pageOptions.skip, +(pageOptions.skip + (pageOptions.take - 1)));
-    const itemCount = chats.count;
-    const data = chats.data;
-    const chatList = [];
-    for (const chat of data) {
-      const messages = await this.supabase
-        .getSupabase()
-        .from('chat_message')
-        .select()
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .eq('chat', chat.id);
-      chatList.push({
-        ...chat,
-        lastMessage: messages.data[0],
-      });
-    }
-
-    const meta = new PageMetaDto({ itemCount, pageOptionsDto: pageOptions });
-
-    return new PageDto(chatList, meta);
+    return this.chatService.getChatList(pageOptions);
   }
 
   @Get(':id/messages')

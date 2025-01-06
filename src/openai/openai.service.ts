@@ -56,6 +56,16 @@ export class OpenAIService {
           const name = toolCall?.function.name;
           const args = JSON.parse(toolCall?.function?.arguments || '{}');
           let completed = false;
+          if (name === 'unShortAmazonUrl') {
+            const url = args.url;
+            const shortUrl = await this.unShortAmazonUrl(url);
+            const toolOutput = {
+              tool_call_id: toolCall.id,
+              output: shortUrl,
+            };
+            toolOutputs.push(toolOutput);
+            completed = true;
+          }
           if (name === 'getAmazonProductByASIN') {
             const asin = args.asin;
             const amazonProduct = await this.getAmazonProductByASIN(asin);
@@ -63,13 +73,6 @@ export class OpenAIService {
               tool_call_id: toolCall.id,
               output: amazonProduct,
             };
-            // await this.openai.beta.threads.runs.submitToolOutputs(
-            //   threadId,
-            //   actualRun.id,
-            //   {
-            //     tool_outputs: [toolOutput],
-            //   },
-            // );
             toolOutputs.push(toolOutput);
             completed = true;
           }
@@ -80,13 +83,6 @@ export class OpenAIService {
               tool_call_id: toolCall.id,
               output: ebayProduct,
             };
-            // await this.openai.beta.threads.runs.submitToolOutputs(
-            //   threadId,
-            //   actualRun.id,
-            //   {
-            //     tool_outputs: [toolOutput],
-            //   },
-            // );
             toolOutputs.push(toolOutput);
             completed = true;
           }
@@ -97,13 +93,6 @@ export class OpenAIService {
               tool_call_id: toolCall.id,
               output: sheinProduct,
             };
-            // await this.openai.beta.threads.runs.submitToolOutputs(
-            //   threadId,
-            //   actualRun.id,
-            //   {
-            //     tool_outputs: [toolOutput],
-            //   },
-            // );
             toolOutputs.push(toolOutput);
             completed = true;
           }
@@ -114,13 +103,6 @@ export class OpenAIService {
               tool_call_id: toolCall.id,
               output: orderDetails,
             };
-            // await this.openai.beta.threads.runs.submitToolOutputs(
-            //   threadId,
-            //   actualRun.id,
-            //   {
-            //     tool_outputs: [toolOutput],
-            //   },
-            // );
             toolOutputs.push(toolOutput);
             completed = true;
           }
@@ -131,13 +113,16 @@ export class OpenAIService {
               tool_call_id: toolCall.id,
               output: orders,
             };
-            // await this.openai.beta.threads.runs.submitToolOutputs(
-            //   threadId,
-            //   actualRun.id,
-            //   {
-            //     tool_outputs: [toolOutput],
-            //   },
-            // );
+            toolOutputs.push(toolOutput);
+            completed = true;
+          }
+          if (name === 'searchProductByName') {
+            const productName = args.name;
+            const product = await this.searchProductByName(productName);
+            const toolOutput = {
+              tool_call_id: toolCall.id,
+              output: product,
+            };
             toolOutputs.push(toolOutput);
             completed = true;
           }
@@ -148,13 +133,6 @@ export class OpenAIService {
               tool_call_id: toolCall.id,
               output: 'Error al obtener informacion',
             };
-            // await this.openai.beta.threads.runs.submitToolOutputs(
-            //   threadId,
-            //   actualRun.id,
-            //   {
-            //     tool_outputs: [toolOutput],
-            //   },
-            // );
             toolOutputs.push(toolOutput);
           }
         }
@@ -239,6 +217,24 @@ export class OpenAIService {
     const response = await this.run(thread, phone);
     console.log(response);
     return response as any;
+  }
+  async unShortAmazonUrl(url: string) {
+    return new Promise((resolve, reject) => {
+      let urlRequest = url;
+      if (
+        !urlRequest.startsWith('https://') &&
+        !urlRequest.startsWith('http://')
+      ) {
+        urlRequest = 'https://' + url;
+      }
+      fetch(urlRequest)
+        .then((response) => {
+          resolve(response.url);
+        })
+        .catch((error) => {
+          reject(error);
+        });
+    });
   }
   async getAmazonProductByASIN(asin) {
     if (asin) {
@@ -354,7 +350,6 @@ export class OpenAIService {
     }
   }
   async getMyOrders(phone: string) {
-    console.log('OBTENIENDO ESTADO DE LAS ORDENES');
     try {
       const response = await axios.get(
         `https://passeio-api-ljzem.ondigitalocean.app/api/order/phone/${phone}?filters=%5B%7B%22field%22%3A%22status%22%2C%22operator%22%3A%22%3D%3D%22%2C%22value%22%3A%22Entregado%22%7D%5D`,
@@ -382,6 +377,78 @@ export class OpenAIService {
       return 'En este momento no se puede consultar sus pedidos, intente mas tarde, revisa que tu numero este registrado en tu cuenta de CompraLolo';
     }
   }
+  async searchProductByName(name: string) {
+    if (name) {
+      try {
+        const searchTerm = encodeURI(name);
+        const amazonResults = await axios.get(
+          `https://passeio-api-ljzem.ondigitalocean.app/api/amazon/search?domain=com&query=${searchTerm}&page=1`,
+        );
+        const ebayResults = await axios.get(
+          `https://passeio-api-ljzem.ondigitalocean.app/api/ebay/search?limit=20&offset=0&auto_correct=KEYWORD&q=${searchTerm}`,
+        );
+        const sheinResults = await axios.get(
+          `https://passeio-api-ljzem.ondigitalocean.app/api/shein/search?language=en&country=US&currency=USD&keywords=${searchTerm}&sort=7&limit=20&page=1`,
+        );
+        const allResults = [];
+        const amazonData = amazonResults.data.results?.slice(0, 3) ?? [];
+        const ebayData = ebayResults.data.items?.slice(0, 3) ?? [];
+        const sheinData = sheinResults.data.info?.products?.slice(0, 3) ?? [];
+        for (const amazonProduct of amazonData) {
+          const priceResponse = await axios.post(
+            `https://passeio-api-ljzem.ondigitalocean.app/api/price/calculate`,
+            {
+              source: 'AMAZON',
+              price: Number(amazonProduct.price?.replace('$', '')),
+            },
+          );
+          const priceData = priceResponse.data;
+          allResults.push(`
+            ASIN: ${amazonProduct.asin}
+            Título: ${amazonProduct.title}
+            Precio: ${priceData.data.price}
+            Tienda: Amazon
+          `);
+        }
+        for (const ebayProduct of ebayData) {
+          const priceResponse = await axios.post(
+            `https://passeio-api-ljzem.ondigitalocean.app/api/price/calculate`,
+            {
+              source: 'EBAY',
+              price: Number(ebayProduct.price.value),
+            },
+          );
+          const priceData = priceResponse.data;
+          allResults.push(`
+            ID: ${ebayProduct.id}
+            Título: ${ebayProduct.title}
+            Precio: ${priceData.data.price}
+            Tienda: Ebay
+          `);
+        }
+        for (const sheinProduct of sheinData) {
+          const priceResponse = await axios.post(
+            `https://passeio-api-ljzem.ondigitalocean.app/api/price/calculate`,
+            {
+              source: 'SHEIN',
+              price: Number(sheinProduct?.retailPrice?.amount),
+            },
+          );
+          const priceData = priceResponse.data;
+          allResults.push(`
+            ID: ${sheinProduct.id}
+            Título: ${sheinProduct.name}
+            Precio: ${priceData.data.price}
+            Tienda: Shein
+          `);
+        }
+        return allResults.join('\n');
+      } catch (error) {
+        console.log(error);
+        return 'En este momento no se puede consultar el producto, intente mas tarde';
+      }
+    }
+  }
 
   async updateFunctions() {
     this.openai.beta.assistants.update(process.env.OPENAI_ASSISTANT_ID, {
@@ -405,6 +472,25 @@ export class OpenAIService {
               },
               additionalProperties: false,
               required: ['orderRef'],
+            },
+          },
+        },
+        {
+          type: 'function',
+          function: {
+            strict: true,
+            name: 'unShortAmazonUrl',
+            description: 'Obtiene la URL original de una URL corta de Amazon',
+            parameters: {
+              type: 'object',
+              properties: {
+                url: {
+                  type: 'string',
+                  description: 'URL corta del producto',
+                },
+              },
+              additionalProperties: false,
+              required: ['url'],
             },
           },
         },
@@ -477,6 +563,26 @@ export class OpenAIService {
               type: 'object',
               additionalProperties: false,
               properties: {},
+            },
+          },
+        },
+        {
+          type: 'function',
+          function: {
+            strict: true,
+            name: 'searchProductByName',
+            description:
+              'Busca un producto por su nombre en Amazon, Ebay y Shein',
+            parameters: {
+              type: 'object',
+              properties: {
+                name: {
+                  type: 'string',
+                  description: 'Nombre del producto',
+                },
+              },
+              additionalProperties: false,
+              required: ['name'],
             },
           },
         },

@@ -5,10 +5,16 @@ import { UpdateFileDto } from './dto/update-file.dto';
 import { OpenAIService } from '../openai/openai.service';
 import { createReadStream } from 'fs';
 import { createTempFileFromMulter } from '../common/utils/files';
+import { SupabaseService } from '../supabase/supabase.service';
+import { randomBytes } from 'node:crypto';
+import { unlinkSync } from 'node:fs';
 
 @Injectable()
 export class FilesService {
-  constructor(private readonly openaiService: OpenAIService) {}
+  constructor(
+    private readonly openaiService: OpenAIService,
+    private readonly supabaseService: SupabaseService,
+  ) {}
   async create(createFileDto: CreateFileDto, file: Express.Multer.File) {
     const { destroy, filepath } = createTempFileFromMulter(file);
     const vectorStore = (
@@ -49,5 +55,19 @@ export class FilesService {
     );
     await this.openaiService.openai.files.del(id);
     return true;
+  }
+  async uploadWhatsappMedia(path: string) {
+    console.log('Path', path);
+    const fileBuffer = createReadStream(path);
+    const fullPath = await this.supabaseService
+      .getSupabase()
+      .storage.from('media')
+      .upload(
+        `${randomBytes(10).toString('hex')}_${path.split('/').pop()}`,
+        fileBuffer,
+        { duplex: 'half' },
+      );
+    unlinkSync(path);
+    return fullPath.data.fullPath;
   }
 }

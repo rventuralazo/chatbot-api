@@ -5,6 +5,7 @@ import { WebsocketGateway } from '../websocket/websocket.gateway';
 import { ChatService } from '../chat/chat.service';
 import { OpenAIService } from '../openai/openai.service';
 import { ChatbotController } from './chatbot.controller';
+import { FilesService } from '../files/files.service';
 
 @Module({
   providers: [
@@ -13,6 +14,7 @@ import { ChatbotController } from './chatbot.controller';
     WebsocketGateway,
     ChatService,
     OpenAIService,
+    FilesService,
   ],
   controllers: [ChatbotController],
 })

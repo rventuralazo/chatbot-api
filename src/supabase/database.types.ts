@@ -13,29 +13,35 @@ export type Database = {
         Row: {
           created_at: string;
           id: number;
+          lastMessageDate: string | null;
           name: string | null;
           notes: string | null;
           paused: boolean;
           phone: string;
           theadId: string | null;
+          urlPicture: string | null;
         };
         Insert: {
           created_at?: string;
           id?: number;
+          lastMessageDate?: string | null;
           name?: string | null;
           notes?: string | null;
           paused?: boolean;
           phone: string;
           theadId?: string | null;
+          urlPicture?: string | null;
         };
         Update: {
           created_at?: string;
           id?: number;
+          lastMessageDate?: string | null;
           name?: string | null;
           notes?: string | null;
           paused?: boolean;
           phone?: string;
           theadId?: string | null;
+          urlPicture?: string | null;
         };
         Relationships: [];
       };
