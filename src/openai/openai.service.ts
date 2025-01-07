@@ -119,6 +119,7 @@ export class OpenAIService {
           if (name === 'searchProductByName') {
             const productName = args.name;
             const product = await this.searchProductByName(productName);
+            console.log('Product Result', product);
             const toolOutput = {
               tool_call_id: toolCall.id,
               output: product,
@@ -392,7 +393,7 @@ export class OpenAIService {
         );
         const allResults = [];
         const amazonData = amazonResults.data.results?.slice(0, 3) ?? [];
-        const ebayData = ebayResults.data.items?.slice(0, 3) ?? [];
+        const ebayData = ebayResults.data.itemSummaries?.slice(0, 3) ?? [];
         const sheinData = sheinResults.data.info?.products?.slice(0, 3) ?? [];
         for (const amazonProduct of amazonData) {
           const priceResponse = await axios.post(
@@ -420,7 +421,7 @@ export class OpenAIService {
           );
           const priceData = priceResponse.data;
           allResults.push(`
-            ID: ${ebayProduct.id}
+            ID: ${ebayProduct.itemId}
             Título: ${ebayProduct.title}
             Precio: ${priceData.data.price}
             Tienda: Ebay
@@ -436,8 +437,8 @@ export class OpenAIService {
           );
           const priceData = priceResponse.data;
           allResults.push(`
-            ID: ${sheinProduct.id}
-            Título: ${sheinProduct.name}
+            ID: ${sheinProduct?.goods_id}
+            Título: ${sheinProduct?.goods_name}
             Precio: ${priceData.data.price}
             Tienda: Shein
           `);
