@@ -108,6 +108,7 @@ export class OpenAIService {
           }
           if (name === 'getUserOrders') {
             const orders = await this.getMyOrders(phone);
+            console.log('ORDERS', orders);
             console.log('User Orders', orders);
             const toolOutput = {
               tool_call_id: toolCall.id,
@@ -123,6 +124,15 @@ export class OpenAIService {
             const toolOutput = {
               tool_call_id: toolCall.id,
               output: product,
+            };
+            toolOutputs.push(toolOutput);
+            completed = true;
+          }
+          if (name === 'getTodayDate') {
+            const date = await this.getTodayDate();
+            const toolOutput = {
+              tool_call_id: toolCall.id,
+              output: date,
             };
             toolOutputs.push(toolOutput);
             completed = true;
@@ -350,10 +360,27 @@ export class OpenAIService {
       return 'No se proporcionó una referencia de pedido válida.';
     }
   }
+  async getTodayDate() {
+    return new Date().toISOString().split('T')[0];
+  }
   async getMyOrders(phone: string) {
     try {
+      const filters = [
+        {
+          field: 'status',
+          operator: 'in',
+          value: [
+            'Orden Confirmada',
+            'Producto Comprado',
+            'Producto en Camino',
+            'Recibido en Sucursal',
+            'Delivery o Listo para ser retirado',
+            'Entregado',
+          ],
+        },
+      ];
       const response = await axios.get(
-        `https://passeio-api-ljzem.ondigitalocean.app/api/order/phone/${phone}?filters=%5B%7B%22field%22%3A%22status%22%2C%22operator%22%3A%22%3D%3D%22%2C%22value%22%3A%22Entregado%22%7D%5D`,
+        `https://passeio-api-ljzem.ondigitalocean.app/api/order/phone/${phone}?filters=${encodeURI(JSON.stringify(filters))}`,
       );
       const data = response.data.data.bulk;
       return `
@@ -364,12 +391,14 @@ export class OpenAIService {
             Estado: ${order.status}
             Producto: ${order.product.nameProduct}
             Fecha de Llegada: ${order.arrivalDate}
+            URL: ${order.product.urlProduct}
             Total: ${order.total}
           `;
           })
           .join('\n')}
       `;
     } catch (error) {
+      console.log('Error al obtener los pedidos', error);
       if (error instanceof AxiosError) {
         if (error.response?.status === 404) {
           return 'No se encontraron pedidos.';
@@ -584,6 +613,19 @@ export class OpenAIService {
               },
               additionalProperties: false,
               required: ['name'],
+            },
+          },
+        },
+        {
+          type: 'function',
+          function: {
+            strict: true,
+            name: 'getTodayDate',
+            description: 'Obtiene la fecha de hoy',
+            parameters: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {},
             },
           },
         },
