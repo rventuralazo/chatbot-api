@@ -1,14 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import axios, { AxiosError } from 'axios';
 import OpenAI from 'openai';
+import {
+  getDeliveryPrice,
+  getWeightFromProductDetails,
+} from '../chatbot/utils/amazon';
 
 @Injectable()
 export class OpenAIService {
   openai: OpenAI;
+  loloApiUrl: string;
   constructor() {
     this.openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
+    this.loloApiUrl = process.env.LOLO_API_URL;
     this.updateFunctions();
   }
   async createThread() {
@@ -250,28 +256,49 @@ export class OpenAIService {
   async getAmazonProductByASIN(asin) {
     if (asin) {
       const response = await axios.get(
-        `https://passeio-api-ljzem.ondigitalocean.app/api/amazon/search?domain=com&query=${asin}&page=1`,
+        `${this.loloApiUrl}/amazon/search?domain=com&query=${asin}&page=1`,
       );
       const data = response.data;
       const firstProduct = data.results?.[0];
+
+      const responseDetail = await axios.get(
+        `${this.loloApiUrl}/amazon/detail?domain=com&asin=${asin}`,
+      );
+      const productDetail = responseDetail.data;
+
       let price = firstProduct?.price;
       if (firstProduct) {
+        const weight = getWeightFromProductDetails(productDetail);
+        const shippingPrice =
+          getDeliveryPrice(productDetail.shipping_info) ?? 0;
+        console.log('Weight', weight);
+        console.log('Shipping', shippingPrice);
+        console.log({
+          source: 'AMAZON',
+          price: Number(price.replace('$', '')),
+          weight,
+          shipping: shippingPrice,
+        });
         const priceResponse = await axios.post(
-          `https://passeio-api-ljzem.ondigitalocean.app/api/price/calculate`,
+          `${this.loloApiUrl}/price/calculate`,
           {
             source: 'AMAZON',
             price: Number(price.replace('$', '')),
+            weight,
+            shipping: shippingPrice,
           },
         );
         const priceData = priceResponse.data;
+        console.log(`Price Data: ${JSON.stringify(priceData)}`);
         price = priceData.data.price;
       } else {
         return 'Producto no encontrado';
       }
       return `
+        URL Imagen: ${firstProduct.image}
         ASIN: ${firstProduct.asin}
         Título: ${firstProduct.title}
-        Precio: ${price}
+        Precio: $${price}
       `;
     } else {
       return 'No se proporcionó un ASIN válido.';
@@ -281,14 +308,15 @@ export class OpenAIService {
   async getEbayProductById(id) {
     if (id) {
       const response = await axios.get(
-        `https://passeio-api-ljzem.ondigitalocean.app/api/ebay/search?limit=20&offset=0&auto_correct=KEYWORD&q=${id}`,
+        `${this.loloApiUrl}/ebay/search?limit=20&offset=0&auto_correct=KEYWORD&q=${id}`,
       );
       const data = response.data;
       const firstProduct = data?.itemSummaries?.[0];
+      // const shipping = product?.shippingOptions?.shippingCost?.value ?? 0
       let price = firstProduct?.price?.value;
       if (firstProduct) {
         const priceResponse = await axios.post(
-          `https://passeio-api-ljzem.ondigitalocean.app/api/price/calculate`,
+          `${this.loloApiUrl}/price/calculate`,
           {
             source: 'EBAY',
             price: Number(price),
@@ -300,6 +328,7 @@ export class OpenAIService {
         return 'Producto no encontrado';
       }
       return `
+        URL Imagen: ${firstProduct?.image?.imageUrl}
         ID: ${firstProduct?.id}
         Título: ${firstProduct?.title}
         Precio: ${price}
@@ -311,14 +340,19 @@ export class OpenAIService {
   async getSheinProductById(id) {
     if (id) {
       const response = await axios.get(
-        `https://passeio-api-ljzem.ondigitalocean.app/api/shein/search?language=en&country=US&currency=USD&keywords=${id}&sort=7&limit=20&page=1`,
+        `${this.loloApiUrl}/shein/search?language=en&country=US&currency=USD&keywords=${id}&sort=7&limit=20&page=1`,
       );
       const data = response.data;
       const firstProduct = data?.info?.products?.[0];
+
+      // Search -> Detail -> Legacy Detail
+      // const price = Number.parseFloat(
+      //   product.sale_price?.amount ?? product?.salePrice?.amount,
+      // )
       let price = firstProduct?.retailPrice?.amount;
       if (firstProduct) {
         const priceResponse = await axios.post(
-          `https://passeio-api-ljzem.ondigitalocean.app/api/price/calculate`,
+          `${this.loloApiUrl}/price/calculate`,
           {
             source: 'SHEIN',
             price: Number(price),
@@ -330,6 +364,7 @@ export class OpenAIService {
         return 'Producto no encontrado';
       }
       return `
+        URL Imagen: ${firstProduct?.goods_img}
         ID: ${firstProduct?.id}
         Título: ${firstProduct?.goods_name}
         Precio: ${price}
@@ -343,7 +378,7 @@ export class OpenAIService {
     if (orderRef) {
       try {
         const response = await axios.get(
-          `https://passeio-api-ljzem.ondigitalocean.app/api/order/${orderRef}`,
+          `${this.loloApiUrl}/order/${orderRef}`,
         );
         const data = response.data;
         return `
@@ -380,7 +415,7 @@ export class OpenAIService {
         },
       ];
       const response = await axios.get(
-        `https://passeio-api-ljzem.ondigitalocean.app/api/order/phone/${phone}?filters=${encodeURI(JSON.stringify(filters))}`,
+        `${this.loloApiUrl}/order/phone/${phone}?filters=${encodeURI(JSON.stringify(filters))}`,
       );
       const data = response.data.data.bulk;
       return `
@@ -412,37 +447,53 @@ export class OpenAIService {
       try {
         const searchTerm = encodeURI(name);
         const amazonResults = await axios.get(
-          `https://passeio-api-ljzem.ondigitalocean.app/api/amazon/search?domain=com&query=${searchTerm}&page=1`,
+          `${this.loloApiUrl}/amazon/search?domain=com&query=${searchTerm}&page=1`,
         );
         const ebayResults = await axios.get(
-          `https://passeio-api-ljzem.ondigitalocean.app/api/ebay/search?limit=20&offset=0&auto_correct=KEYWORD&q=${searchTerm}`,
+          `${this.loloApiUrl}/ebay/search?limit=20&offset=0&auto_correct=KEYWORD&q=${searchTerm}`,
         );
         const sheinResults = await axios.get(
-          `https://passeio-api-ljzem.ondigitalocean.app/api/shein/search?language=en&country=US&currency=USD&keywords=${searchTerm}&sort=7&limit=20&page=1`,
+          `${this.loloApiUrl}/shein/search?language=en&country=US&currency=USD&keywords=${searchTerm}&sort=7&limit=20&page=1`,
         );
         const allResults = [];
         const amazonData = amazonResults.data.results?.slice(0, 3) ?? [];
         const ebayData = ebayResults.data.itemSummaries?.slice(0, 3) ?? [];
         const sheinData = sheinResults.data.info?.products?.slice(0, 3) ?? [];
         for (const amazonProduct of amazonData) {
+          const productDetail = await axios.get(
+            `${this.loloApiUrl}/amazon/detail?domain=com&asin=${amazonProduct.asin}`,
+          );
+          const weight =
+            getWeightFromProductDetails(productDetail.data) || null;
+          const shippingPrice = getDeliveryPrice(
+            productDetail.data.shipping_info,
+          );
+          console.log('Weight', weight);
+          console.log('Shipping', shippingPrice);
+
           const priceResponse = await axios.post(
-            `https://passeio-api-ljzem.ondigitalocean.app/api/price/calculate`,
+            `${this.loloApiUrl}/price/calculate`,
             {
               source: 'AMAZON',
               price: Number(amazonProduct.price?.replace('$', '')),
+              weight,
+              shipping: shippingPrice,
             },
           );
           const priceData = priceResponse.data;
-          allResults.push(`
-            ASIN: ${amazonProduct.asin}
-            Título: ${amazonProduct.title}
-            Precio: ${priceData.data.price}
-            Tienda: Amazon
-          `);
+          if (weight ?? 0 <= 20) {
+            allResults.push(`
+              URL Imagen: ${amazonProduct.image}
+              ASIN: ${amazonProduct.asin}
+              Título: ${amazonProduct.title}
+              Precio: ${priceData.data.price}
+              Tienda: Amazon
+            `);
+          }
         }
         for (const ebayProduct of ebayData) {
           const priceResponse = await axios.post(
-            `https://passeio-api-ljzem.ondigitalocean.app/api/price/calculate`,
+            `${this.loloApiUrl}/price/calculate`,
             {
               source: 'EBAY',
               price: Number(ebayProduct.price.value),
@@ -450,6 +501,7 @@ export class OpenAIService {
           );
           const priceData = priceResponse.data;
           allResults.push(`
+            URL Imagen: ${ebayProduct.image?.imageUrl}
             ID: ${ebayProduct.itemId}
             Título: ${ebayProduct.title}
             Precio: ${priceData.data.price}
@@ -458,7 +510,7 @@ export class OpenAIService {
         }
         for (const sheinProduct of sheinData) {
           const priceResponse = await axios.post(
-            `https://passeio-api-ljzem.ondigitalocean.app/api/price/calculate`,
+            `${this.loloApiUrl}/price/calculate`,
             {
               source: 'SHEIN',
               price: Number(sheinProduct?.retailPrice?.amount),
@@ -466,6 +518,7 @@ export class OpenAIService {
           );
           const priceData = priceResponse.data;
           allResults.push(`
+            URL Imagen: ${sheinProduct?.goods_img}
             ID: ${sheinProduct?.goods_id}
             Título: ${sheinProduct?.goods_name}
             Precio: ${priceData.data.price}
@@ -654,11 +707,6 @@ export class OpenAIService {
       messages: [
         {
           role: 'system',
-          // content: `Agrega las mejoras que pida el usuario a la siguientes texto, manten la estructura del texo, solo responde con el nuevo texto:
-          //     #### Estas es el texto ####
-          //     ${instrucctions}
-          //     #### Fin del texto ####
-          //   `,
           content:
             'Agrega las mejoras o cambios que pida el usuario a las instrucciones proporcionadas, solo agrega o modifica lo que pide el usuario, no hagas correcciones o quites texto en las instrucciones que no te pida el usuario, responde con la nueva la estructura del texto',
         },

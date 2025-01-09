@@ -113,7 +113,7 @@ export class ChatbotService {
                 state,
                 ctx.from,
               );
-              const chunks = response.split(/(?<!\d)\.\s+/g);
+              const chunks = response.split(/\r?\n|\r|\n/g);
               for (const chunk of chunks) {
                 await new Promise((resolve) => setTimeout(resolve, 1000));
                 await typing(ctx, provider);
@@ -121,11 +121,36 @@ export class ChatbotService {
                   console.log('PAUSE_CHATBOT');
                   await this.chatService.pauseChat(savedChat.id);
                 } else {
-                  await flowDynamic([{ body: chunk.trim() }]);
-                  await this.chatService.saveChatMessage(savedChat.id, {
-                    message: chunk.trim(),
-                    isBot: true,
-                  });
+                  console.log(chunk);
+                  if (
+                    chunk.startsWith('[image]') ||
+                    chunk.startsWith('- [image]')
+                  ) {
+                    const imageUrl = chunk
+                      ?.match(/\[image\](.*?)\[endImage\]/)
+                      ?.at(1);
+                    const updatedMessage = chunk.replace(
+                      /\[image\].*?\[endImage\]\n/,
+                      '',
+                    );
+
+                    await flowDynamic([
+                      {
+                        media: imageUrl,
+                        body: updatedMessage,
+                      },
+                    ]);
+                    await this.chatService.saveChatMessage(savedChat.id, {
+                      message: updatedMessage,
+                      isBot: true,
+                    });
+                  } else {
+                    await flowDynamic([{ body: chunk.trim() }]);
+                    await this.chatService.saveChatMessage(savedChat.id, {
+                      message: chunk.trim(),
+                      isBot: true,
+                    });
+                  }
                 }
               }
             } catch (error) {
