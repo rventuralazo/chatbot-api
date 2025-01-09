@@ -349,8 +349,11 @@ export class OpenAIService {
       // const price = Number.parseFloat(
       //   product.sale_price?.amount ?? product?.salePrice?.amount,
       // )
-      let price = firstProduct?.retailPrice?.amount;
-      if (firstProduct) {
+      const productDetail = await axios.get(
+        `${this.loloApiUrl}/shein/detail?language=en&country=US&currency=USD&goods_id=${id}`,
+      );
+      let price = productDetail.data.info?.sale_price?.amount;
+      if (firstProduct && price) {
         const priceResponse = await axios.post(
           `${this.loloApiUrl}/price/calculate`,
           {
@@ -509,11 +512,15 @@ export class OpenAIService {
           `);
         }
         for (const sheinProduct of sheinData) {
+          const productDetail = await axios.get(
+            `${this.loloApiUrl}/shein/detail?language=en&country=US&currency=USD&goods_id=${sheinProduct?.goods_id}`,
+          );
+          const price = productDetail.data.info?.sale_price?.amount;
           const priceResponse = await axios.post(
             `${this.loloApiUrl}/price/calculate`,
             {
               source: 'SHEIN',
-              price: Number(sheinProduct?.retailPrice?.amount),
+              price: Number(price),
             },
           );
           const priceData = priceResponse.data;
