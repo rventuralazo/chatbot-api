@@ -6,6 +6,7 @@ import { ChatService } from '../chat/chat.service';
 import { OpenAIService } from '../openai/openai.service';
 import { ChatbotController } from './chatbot.controller';
 import { FilesService } from '../files/files.service';
+import { ChatEventLogService } from '../chat/chat-event-log.service';
 
 @Module({
   providers: [
@@ -15,6 +16,7 @@ import { FilesService } from '../files/files.service';
     ChatService,
     OpenAIService,
     FilesService,
+    ChatEventLogService,
   ],
   controllers: [ChatbotController],
 })

@@ -11,39 +11,104 @@ export type Database = {
     Tables: {
       chat: {
         Row: {
+          assignedTo: string | null;
           created_at: string;
           id: number;
           lastMessageDate: string | null;
           name: string | null;
           notes: string | null;
           paused: boolean;
+          pausedAnswered: boolean | null;
+          pausedTime: string | null;
           phone: string;
           theadId: string | null;
           urlPicture: string | null;
         };
         Insert: {
+          assignedTo?: string | null;
           created_at?: string;
           id?: number;
           lastMessageDate?: string | null;
           name?: string | null;
           notes?: string | null;
           paused?: boolean;
+          pausedAnswered?: boolean | null;
+          pausedTime?: string | null;
           phone: string;
           theadId?: string | null;
           urlPicture?: string | null;
         };
         Update: {
+          assignedTo?: string | null;
           created_at?: string;
           id?: number;
           lastMessageDate?: string | null;
           name?: string | null;
           notes?: string | null;
           paused?: boolean;
+          pausedAnswered?: boolean | null;
+          pausedTime?: string | null;
           phone?: string;
           theadId?: string | null;
           urlPicture?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: 'chat_assignedTo_fkey';
+            columns: ['assignedTo'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      chat_event_log: {
+        Row: {
+          action: string | null;
+          chat: number | null;
+          created_at: string;
+          extra_information: Json | null;
+          id: number;
+          response_time: number | null;
+          tags: string | null;
+          user: string | null;
+        };
+        Insert: {
+          action?: string | null;
+          chat?: number | null;
+          created_at?: string;
+          extra_information?: Json | null;
+          id?: number;
+          response_time?: number | null;
+          tags?: string | null;
+          user?: string | null;
+        };
+        Update: {
+          action?: string | null;
+          chat?: number | null;
+          created_at?: string;
+          extra_information?: Json | null;
+          id?: number;
+          response_time?: number | null;
+          tags?: string | null;
+          user?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'chat_event_chat_fkey';
+            columns: ['chat'];
+            isOneToOne: false;
+            referencedRelation: 'chat';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'chat_event_user_fkey';
+            columns: ['user'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       chat_message: {
         Row: {
@@ -162,6 +227,27 @@ export type Database = {
             referencedColumns: ['id'];
           },
         ];
+      };
+      profiles: {
+        Row: {
+          avatarUrl: string | null;
+          email: string | null;
+          fullname: string | null;
+          id: string;
+        };
+        Insert: {
+          avatarUrl?: string | null;
+          email?: string | null;
+          fullname?: string | null;
+          id: string;
+        };
+        Update: {
+          avatarUrl?: string | null;
+          email?: string | null;
+          fullname?: string | null;
+          id?: string;
+        };
+        Relationships: [];
       };
     };
     Views: {

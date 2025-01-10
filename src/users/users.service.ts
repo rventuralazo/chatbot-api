@@ -39,12 +39,13 @@ export class UsersService {
   }
 
   async update(id: string, updateUserDto: UpdateUserDto) {
-    const { data } = await this.supabase.admin.updateUserById(id, {
+    const { data, error } = await this.supabase.admin.updateUserById(id, {
       email: updateUserDto.email,
       user_metadata: { name: updateUserDto.name },
       ...(updateUserDto.password && { password: updateUserDto.password }),
       email_confirm: true,
     });
+    console.log('Error', error);
     return data;
   }
 
@@ -55,9 +56,8 @@ export class UsersService {
 
   async updateProfilePhoto(userId: string, file: Express.Multer.File) {
     const filebase64 = decode(file.buffer.toString('base64'));
-    const uploadResult = await this.supabase
-      .getSupabase()
-      .storage.from('profile')
+    const uploadResult = await this.supabase.client.storage
+      .from('profile')
       .upload(
         `pictures/${randomBytes(10).toString('hex')}_${file.originalname}`,
         filebase64,

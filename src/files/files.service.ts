@@ -33,7 +33,6 @@ export class FilesService {
 
   findAll() {
     return this.openaiService.getFilesIds();
-    return `This action returns all files`;
   }
 
   findOne(id: number) {
@@ -59,9 +58,8 @@ export class FilesService {
   async uploadWhatsappMedia(path: string) {
     console.log('Path', path);
     const fileBuffer = createReadStream(path);
-    const fullPath = await this.supabaseService
-      .getSupabase()
-      .storage.from('media')
+    const fullPath = await this.supabaseService.client.storage
+      .from('media')
       .upload(
         `${randomBytes(10).toString('hex')}_${path.split('/').pop()}`,
         fileBuffer,

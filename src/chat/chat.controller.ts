@@ -13,6 +13,7 @@ import axios from 'axios';
 import { PageOptionsDto } from '../common/dtos/page-options.dto';
 import { PageDto, PageMetaDto } from '../common/dtos/page-meta.dto';
 import { AuthGuard } from '@nestjs/passport';
+import { WebsocketGateway } from '../websocket/websocket.gateway';
 // import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
 
 @Controller('api/chat')
@@ -21,17 +22,26 @@ export class ChatController {
   constructor(
     private readonly supabase: SupabaseService,
     private readonly chatService: ChatService,
+    private readonly websocket: WebsocketGateway,
   ) {}
 
   @Get(':id')
   async getChat(@Param('id') id: string) {
-    const chat = await this.supabase
-      .getSupabase()
+    const chat = await this.supabase.client
       .from('chat')
-      .select()
+      .select(`*, assignedTo(*)`)
       .eq('id', id)
       .single();
+    console.log(chat);
     return chat.data;
+  }
+  @Get(':id/event-log')
+  async getChatEventLog(@Param('id') id: string) {
+    const eventLog = await this.supabase.client
+      .from('chat_event_log')
+      .select()
+      .eq('chat', id);
+    return eventLog.data;
   }
 
   @Get()
@@ -44,7 +54,7 @@ export class ChatController {
     @Param('id') id: string,
     @Query() pageOptions: PageOptionsDto,
   ) {
-    const messagesQuery = this.supabase.getSupabase().from('chat_message');
+    const messagesQuery = this.supabase.client.from('chat_message');
     await messagesQuery.select('*', { count: 'exact', head: true });
 
     const messages = await messagesQuery
@@ -79,34 +89,19 @@ export class ChatController {
   }
   @Get(':id/pause')
   async pauseChat(@Param('id') id: number) {
-    return await this.supabase
-      .getSupabase()
-      .from('chat')
-      .update({ paused: true })
-      .eq('id', id);
+    console.log('Pausing chat', id);
+    return await this.chatService.pauseChat(id);
   }
   @Get(':id/resume')
   async resumeChat(@Param('id') id: number) {
-    return await this.supabase
-      .getSupabase()
-      .from('chat')
-      .update({ paused: false })
-      .eq('id', id);
+    return await this.chatService.resumeChat(id);
   }
   @Get(':id/mark-as-read')
   async markMessageAsRead(@Param('id') id: number) {
-    return await this.supabase
-      .getSupabase()
-      .from('chat_message')
-      .update({ isRead: true })
-      .eq('id', id);
+    return await this.markMessageAsRead(id);
   }
   @Post(':id/notes')
   async addNote(@Param('id') id: number, @Body() body: { note: string }) {
-    return await this.supabase
-      .getSupabase()
-      .from('chat')
-      .update({ notes: body.note })
-      .eq('id', id);
+    return await this.chatService.updateChatNote(id, body.note);
   }
 }

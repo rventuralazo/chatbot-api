@@ -13,7 +13,7 @@ export class SupabaseService {
     this.adminClient = createClient<Database>(supabaseUrl, supabaseServiceKey);
   }
 
-  getSupabase() {
+  get client() {
     return this.supabase;
   }
   get admin() {

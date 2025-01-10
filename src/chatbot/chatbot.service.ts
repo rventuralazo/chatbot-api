@@ -145,11 +145,13 @@ export class ChatbotService {
                       isBot: true,
                     });
                   } else {
-                    await flowDynamic([{ body: chunk.trim() }]);
-                    await this.chatService.saveChatMessage(savedChat.id, {
-                      message: chunk.trim(),
-                      isBot: true,
-                    });
+                    if (chunk.trim()) {
+                      await flowDynamic([{ body: chunk.trim() }]);
+                      await this.chatService.saveChatMessage(savedChat.id, {
+                        message: chunk.trim(),
+                        isBot: true,
+                      });
+                    }
                   }
                 }
               }
