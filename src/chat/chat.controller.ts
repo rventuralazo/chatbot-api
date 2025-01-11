@@ -98,7 +98,7 @@ export class ChatController {
   }
   @Get(':id/mark-as-read')
   async markMessageAsRead(@Param('id') id: number) {
-    return await this.markMessageAsRead(id);
+    return await this.chatService.markMessageAsRead(id);
   }
   @Post(':id/notes')
   async addNote(@Param('id') id: number, @Body() body: { note: string }) {

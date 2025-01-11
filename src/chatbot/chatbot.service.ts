@@ -95,10 +95,10 @@ export class ChatbotService {
             await this.openaiService.clearAllRuns(thread);
             await state.update({ thread });
           }
-          await this.chatService.saveChatMessage(savedChat.id, {
-            message: ctx.body,
-            isBot: false,
-          });
+          // await this.chatService.saveChatMessage(savedChat.id, {
+          //   message: ctx.body,
+          //   isBot: false,
+          // });
           if (!savedChat.paused) {
             // await typing(ctx, provider);
             // const botResponse = 'Hello, I am a chatbot!';
@@ -113,7 +113,7 @@ export class ChatbotService {
                 state,
                 ctx.from,
               );
-              const chunks = response.split(/\r?\n|\r|\n/g);
+              const chunks = response.split(/\n\s*\n/);
               for (const chunk of chunks) {
                 await new Promise((resolve) => setTimeout(resolve, 1000));
                 await typing(ctx, provider);
@@ -123,14 +123,14 @@ export class ChatbotService {
                 } else {
                   console.log(chunk);
                   if (
-                    chunk.startsWith('[image]') ||
-                    chunk.startsWith('- [image]')
+                    chunk.endsWith('[endImage]') ||
+                    chunk.endsWith('- [endImage]')
                   ) {
                     const imageUrl = chunk
                       ?.match(/\[image\](.*?)\[endImage\]/)
                       ?.at(1);
                     const updatedMessage = chunk.replace(
-                      /\[image\].*?\[endImage\]\n/,
+                      /\[image\].*?\[endImage\]/,
                       '',
                     );
 

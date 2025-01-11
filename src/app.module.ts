@@ -12,6 +12,12 @@ import { UsersModule } from './users/users.module';
 import { FilesModule } from './files/files.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { AmazonModule } from './amazon/amazon.module';
+import { TripModule } from './trip/trip.module';
+import { DriverModule } from './driver/driver.module';
+import { EbayModule } from './ebay/ebay.module';
+import { SheinModule } from './shein/shein.module';
+import { FirebaseModule } from './firebase/firebase.module';
 @Module({
   imports: [
     AuthModule,
@@ -26,6 +32,12 @@ import { join } from 'path';
     OpenaiModule,
     UsersModule,
     FilesModule,
+    AmazonModule,
+    TripModule,
+    DriverModule,
+    EbayModule,
+    SheinModule,
+    FirebaseModule,
   ],
   controllers: [AppController],
   providers: [AppService, SupabaseService],

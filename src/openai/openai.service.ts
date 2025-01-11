@@ -1,20 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import OpenAI from 'openai';
-import {
-  getAmazonProductByASIN,
-  getEbayProductById,
-  getMyOrders,
-  getOrderDetailsByOrderRef,
-  getSheinProductById,
-  getTodayDate,
-  searchProductByName,
-  unShortAmazonUrl,
-} from './functions';
+import { AssistantActionService } from './assistant-action.service';
 
 @Injectable()
 export class OpenAIService {
   openai: OpenAI;
-  constructor() {
+  constructor(private readonly assistantActionService: AssistantActionService) {
     this.openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
@@ -58,7 +49,8 @@ export class OpenAIService {
           let completed = false;
           if (name === 'unShortAmazonUrl') {
             const url = args.url;
-            const shortUrl = await unShortAmazonUrl(url);
+            const shortUrl =
+              await this.assistantActionService.unShortAmazonUrl(url);
             const toolOutput = {
               tool_call_id: toolCall.id,
               output: shortUrl,
@@ -68,7 +60,8 @@ export class OpenAIService {
           }
           if (name === 'getAmazonProductByASIN') {
             const asin = args.asin;
-            const amazonProduct = await getAmazonProductByASIN(asin);
+            const amazonProduct =
+              await this.assistantActionService.getAmazonProductByASIN(asin);
             const toolOutput = {
               tool_call_id: toolCall.id,
               output: amazonProduct,
@@ -78,7 +71,8 @@ export class OpenAIService {
           }
           if (name === 'getEbayProductById') {
             const id = args.id;
-            const ebayProduct = await getEbayProductById(id);
+            const ebayProduct =
+              await this.assistantActionService.getEbayProductById(id);
             const toolOutput = {
               tool_call_id: toolCall.id,
               output: ebayProduct,
@@ -88,7 +82,8 @@ export class OpenAIService {
           }
           if (name === 'getSheinProductById') {
             const id = args.id;
-            const sheinProduct = await getSheinProductById(id);
+            const sheinProduct =
+              await this.assistantActionService.getSheinProductById(id);
             const toolOutput = {
               tool_call_id: toolCall.id,
               output: sheinProduct,
@@ -98,7 +93,10 @@ export class OpenAIService {
           }
           if (name === 'getOrderDetailsByOrderRef') {
             const orderRef = args.orderRef;
-            const orderDetails = await getOrderDetailsByOrderRef(orderRef);
+            const orderDetails =
+              await this.assistantActionService.getOrderDetailsByOrderRef(
+                orderRef,
+              );
             const toolOutput = {
               tool_call_id: toolCall.id,
               output: orderDetails,
@@ -107,7 +105,7 @@ export class OpenAIService {
             completed = true;
           }
           if (name === 'getUserOrders') {
-            const orders = await getMyOrders(phone);
+            const orders = await this.assistantActionService.getMyOrders(phone);
             console.log('ORDERS', orders);
             console.log('User Orders', orders);
             const toolOutput = {
@@ -119,7 +117,10 @@ export class OpenAIService {
           }
           if (name === 'searchProductByName') {
             const productName = args.name;
-            const product = await searchProductByName(productName);
+            const product =
+              await this.assistantActionService.searchProductByName(
+                productName,
+              );
             console.log('Product Result', product);
             const toolOutput = {
               tool_call_id: toolCall.id,
@@ -129,7 +130,7 @@ export class OpenAIService {
             completed = true;
           }
           if (name === 'getTodayDate') {
-            const date = await getTodayDate();
+            const date = await this.assistantActionService.getTodayDate();
             const toolOutput = {
               tool_call_id: toolCall.id,
               output: date,
@@ -216,6 +217,7 @@ export class OpenAIService {
       await state.update({ thread });
     }
     await this.addMessage(thread, message);
+    console.log('asked');
     const response = await this.run(thread, phone);
     console.log(response);
     return response as any;
@@ -342,8 +344,7 @@ export class OpenAIService {
           function: {
             strict: true,
             name: 'searchProductByName',
-            description:
-              'Busca un producto por su nombre en Amazon, Ebay y Shein',
+            description: 'Busca un producto por su nombre',
             parameters: {
               type: 'object',
               properties: {
