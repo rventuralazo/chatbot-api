@@ -95,10 +95,10 @@ export class ChatbotService {
             await this.openaiService.clearAllRuns(thread);
             await state.update({ thread });
           }
-          // await this.chatService.saveChatMessage(savedChat.id, {
-          //   message: ctx.body,
-          //   isBot: false,
-          // });
+          await this.chatService.saveChatMessage(savedChat.id, {
+            message: ctx.body,
+            isBot: false,
+          });
           if (!savedChat.paused) {
             // await typing(ctx, provider);
             // const botResponse = 'Hello, I am a chatbot!';
