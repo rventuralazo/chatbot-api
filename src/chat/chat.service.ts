@@ -132,7 +132,7 @@ export class ChatService {
       .order('created_at', { ascending: false })
       .limit(1)
       .eq('chat', chatId);
-    return messages.data.at(0);
+    return messages.data?.at(0);
   }
   async getNextAvailableUser() {
     const availableUsers = this.websocket.usersOnline ?? [];
