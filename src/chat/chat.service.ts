@@ -13,17 +13,34 @@ export class ChatService {
     private readonly websocket: WebsocketGateway,
     private readonly chatEventLogService: ChatEventLogService,
   ) {}
-  async getChatList(pageOptions: PageOptionsDto) {
+  async getChatList(
+    pageOptions: PageOptionsDto,
+    mode: string = 'both',
+    assignedTo?: string,
+  ) {
     const query = this.supabase.client.from('chat');
     await query.select('*', { count: 'exact', head: true });
 
-    const chats = await query
-      .select()
+    let chats = query.select();
+
+    if (mode === 'live') {
+      chats = chats.eq('paused', true);
+    }
+    if (mode === 'bot') {
+      chats = chats.eq('paused', false);
+    }
+    if (assignedTo) {
+      chats = chats.eq('assignedTo', assignedTo);
+    }
+
+    chats = chats
       .order('paused', { ascending: false })
       .order('lastMessageDate', { ascending: false })
       .range(+pageOptions.skip, +(pageOptions.skip + (pageOptions.take - 1)));
-    const itemCount = chats.count;
-    const data = chats.data;
+    const results = await chats;
+
+    const itemCount = results.count;
+    const data = results.data;
     const chatList = [];
     for (const chat of data) {
       const lastMessage = await this.getLastMessage(chat.id);
@@ -73,11 +90,15 @@ export class ChatService {
       isBot,
       mediaUrl,
       mediaType,
+      messageId,
+      inReponseOf,
     }: {
       message: string;
       isBot: boolean;
       mediaUrl?: string;
       mediaType?: string;
+      messageId?: string;
+      inReponseOf?: string;
     },
   ) {
     const currentChatInfos = await this.supabase.client
@@ -85,6 +106,14 @@ export class ChatService {
       .select()
       .eq('id', chatId);
     const currentChatInfo = currentChatInfos.data[0];
+
+    const inResponseOfExists = await this.supabase.client
+      .from('chat_message')
+      .select()
+      .eq('whatsapp_ref', messageId);
+    const inResponseOfMessage =
+      inResponseOfExists.count > 0 ? inReponseOf : null;
+
     await this.supabase.client.from('chat_message').insert({
       chat: chatId,
       message: message,
@@ -92,6 +121,8 @@ export class ChatService {
       media_url: mediaUrl,
       media_type: mediaType,
       isRead: isBot ? true : false,
+      whatsapp_ref: messageId,
+      in_response_of: inResponseOfMessage,
     });
     let responseTime;
     if (currentChatInfo.paused && !currentChatInfo.pausedAnswered) {

@@ -69,22 +69,27 @@ export class ChatbotService {
     return addKeyword<Provider, Database>(EVENTS.WELCOME).addAction(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       async (ctx, { flowDynamic, state, provider }) => {
+        const savedChat = await this.chatService.getPhoneChat(
+          ctx.from,
+          ctx.name,
+        );
+        if (savedChat.isNew) {
+          try {
+            const pictureUrl = await provider.vendor.profilePictureUrl(
+              ctx.key?.remoteJid,
+              'image',
+              10000,
+            );
+            await this.chatService.updateUrlPicture(savedChat.id, pictureUrl);
+          } catch {}
+        }
+        await this.chatService.saveChatMessage(savedChat.id, {
+          message: ctx.body,
+          isBot: false,
+          messageId: ctx.key?.id,
+          inReponseOf: ctx.message?.extendedTextMessage?.contextInfo?.stanzaId,
+        });
         enqueueMessage(ctx, async (body) => {
-          const savedChat = await this.chatService.getPhoneChat(
-            ctx.from,
-            ctx.name,
-          );
-          console.log(savedChat);
-          if (savedChat.isNew) {
-            try {
-              const pictureUrl = await provider.vendor.profilePictureUrl(
-                ctx.key?.remoteJid,
-                'image',
-                10000,
-              );
-              await this.chatService.updateUrlPicture(savedChat.id, pictureUrl);
-            } catch {}
-          }
           if (!savedChat.theadId) {
             const threadObject = await this.openaiService.createThread();
             const thread = threadObject.id;
@@ -95,10 +100,6 @@ export class ChatbotService {
             await this.openaiService.clearAllRuns(thread);
             await state.update({ thread });
           }
-          await this.chatService.saveChatMessage(savedChat.id, {
-            message: ctx.body,
-            isBot: false,
-          });
           if (!savedChat.paused) {
             // await typing(ctx, provider);
             // const botResponse = 'Hello, I am a chatbot!';
@@ -117,8 +118,23 @@ export class ChatbotService {
               for (const chunk of chunks) {
                 await new Promise((resolve) => setTimeout(resolve, 1000));
                 await typing(ctx, provider);
-                if (chunk.trim() === 'PAUSE_CHATBOT') {
-                  console.log('PAUSE_CHATBOT');
+
+                // if (chunk.trim().endsWith('PAUSE_CHATBOT')) {
+                //   const message = chunk.replace('PAUSE_CHATBOT', '');
+                //   await flowDynamic([{ body: message }]);
+                //   await this.chatService.saveChatMessage(savedChat.id, {
+                //     message: message,
+                //     isBot: true,
+                //   });
+                // }
+
+                if (chunk.trim().endsWith('PAUSE_CHATBOT')) {
+                  const message = chunk.replace('PAUSE_CHATBOT', '');
+                  await flowDynamic([{ body: message }]);
+                  await this.chatService.saveChatMessage(savedChat.id, {
+                    message: message,
+                    isBot: true,
+                  });
                   await this.chatService.pauseChat(savedChat.id);
                 } else {
                   console.log(chunk);

@@ -62,6 +62,7 @@ export class OpenAIService {
             const asin = args.asin;
             const amazonProduct =
               await this.assistantActionService.getAmazonProductByASIN(asin);
+            console.log('Amazon Product', amazonProduct);
             const toolOutput = {
               tool_call_id: toolCall.id,
               output: amazonProduct,

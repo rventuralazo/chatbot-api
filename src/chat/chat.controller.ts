@@ -45,8 +45,12 @@ export class ChatController {
   }
 
   @Get()
-  async getChatList(@Query() pageOptions: PageOptionsDto) {
-    return this.chatService.getChatList(pageOptions);
+  async getChatList(
+    @Query() pageOptions: PageOptionsDto,
+    @Query('mode') mode: string = 'both',
+    @Query('assignedTo') assignedTo?: string,
+  ) {
+    return this.chatService.getChatList(pageOptions, mode, assignedTo);
   }
 
   @Get(':id/messages')
@@ -74,14 +78,10 @@ export class ChatController {
     @Param('id') id: number,
     @Body() body: { number: string; message: string },
   ) {
-    const response = await axios.post(
-      `${process.env.BUILDERBOT_URL}/v1/messages`,
-      {
-        number: body.number,
-        message: body.message,
-      },
-    );
-    console.log(response);
+    await axios.post(`${process.env.BUILDERBOT_URL}/v1/messages`, {
+      number: body.number,
+      message: body.message,
+    });
     await this.chatService.saveChatMessage(id, {
       message: body.message,
       isBot: true,
