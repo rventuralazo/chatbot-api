@@ -46,7 +46,26 @@ function createMessageQueue(config: QueueConfig) {
     callback: (body: string, from: string) => void,
   ): void {
     const from = ctx.from;
-    const messageBody = ctx.body;
+    let messageBody = ctx.body;
+    console.log('Ctx:', JSON.stringify(ctx));
+    const replyToMessage =
+      ctx.message?.extendedTextMessage?.contextInfo?.quotedMessage
+        ?.conversation ||
+      ctx.message?.extendedTextMessage?.contextInfo?.quotedMessage?.imageMessage
+        ?.caption;
+    console.log(
+      'Reply',
+      JSON.stringify(
+        ctx.message?.extendedTextMessage?.contextInfo?.quotedMessage
+          ?.imageMessage?.caption,
+      ),
+    );
+    if (replyToMessage) {
+      console.log('Reply', replyToMessage);
+      messageBody = `${messageBody}
+      En respuesta a:
+      ${replyToMessage}`;
+    }
 
     if (!from || !messageBody) {
       console.error('Invalid message context:', ctx);

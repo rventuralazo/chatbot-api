@@ -33,7 +33,9 @@ export class ChatbotService {
       this.getWelcomeFlow(),
       this.getMediaFlow(),
     ]);
-    const adapterProvider = createProvider(Provider);
+    const adapterProvider = createProvider(Provider, {
+      writeMyself: 'both',
+    });
     const adapterDB = new Database();
 
     const { httpServer, handleCtx, provider } = await createBot({
@@ -58,9 +60,29 @@ export class ChatbotService {
     adapterProvider.server.post(
       '/v1/messages',
       handleCtx(async (bot, req, res) => {
-        const { number, message, media } = req.body;
-        await bot.sendMessage(number, message, { media });
-        return res.end('send');
+        const { number, message, media, quoted } = req.body;
+        // const result = await bot.provider.vendor.sendMessage(number, {
+        //   forward,
+        //   text: message,
+        //   image: media,
+        // });
+        const replyToMessage =
+          quoted && (await this.chatService.getMessageByWhasappRef(quoted));
+        const result = await bot.provider.vendor.sendMessage(
+          `${number}@s.whatsapp.net`,
+          {
+            text: message,
+            image: media,
+          },
+          {
+            ...(replyToMessage && {
+              quoted: replyToMessage.whatsapp_data as any,
+            }),
+          },
+        );
+        // const result = await bot.sendMessage(number, message, { media });
+        console.log('Result', JSON.stringify(result));
+        return res.end(JSON.stringify(result));
       }),
     );
   }
@@ -73,6 +95,17 @@ export class ChatbotService {
           ctx.from,
           ctx.name,
         );
+        if (ctx.key?.fromMe) {
+          await this.chatService.saveChatMessage(savedChat.id, {
+            message: ctx.body,
+            isBot: true,
+            messageId: ctx.key?.id,
+            metadata: ctx,
+            inReponseOf:
+              ctx.message?.extendedTextMessage?.contextInfo?.stanzaId,
+          });
+          return;
+        }
         if (savedChat.isNew) {
           try {
             const pictureUrl = await provider.vendor.profilePictureUrl(
@@ -83,10 +116,15 @@ export class ChatbotService {
             await this.chatService.updateUrlPicture(savedChat.id, pictureUrl);
           } catch {}
         }
+        console.log(
+          'In response of',
+          ctx.message?.extendedTextMessage?.contextInfo?.stanzaId,
+        );
         await this.chatService.saveChatMessage(savedChat.id, {
           message: ctx.body,
           isBot: false,
           messageId: ctx.key?.id,
+          metadata: ctx,
           inReponseOf: ctx.message?.extendedTextMessage?.contextInfo?.stanzaId,
         });
         enqueueMessage(ctx, async (body) => {
@@ -127,45 +165,65 @@ export class ChatbotService {
                 //     isBot: true,
                 //   });
                 // }
+                console.log(JSON.stringify(chunk));
 
                 if (chunk.trim().endsWith('PAUSE_CHATBOT')) {
                   const message = chunk.replace('PAUSE_CHATBOT', '');
-                  await flowDynamic([{ body: message }]);
+                  // await flowDynamic([{ body: message }]);
+                  const result = await provider.sendText(
+                    ctx.key.remoteJid,
+                    message,
+                  );
                   await this.chatService.saveChatMessage(savedChat.id, {
                     message: message,
                     isBot: true,
+                    metadata: result,
+                    messageId: result.key?.id,
                   });
                   await this.chatService.pauseChat(savedChat.id);
                 } else {
                   console.log(chunk);
-                  if (
-                    chunk.endsWith('[endImage]') ||
-                    chunk.endsWith('- [endImage]')
-                  ) {
-                    const imageUrl = chunk
-                      ?.match(/\[image\](.*?)\[endImage\]/)
+                  if (chunk.includes('[endImage]')) {
+                    const messageWithImage = chunk.trim();
+                    const imageUrl = messageWithImage
+                      ?.match(/\[image\](.*?)\[endImage\]/s)
                       ?.at(1);
-                    const updatedMessage = chunk.replace(
-                      /\[image\].*?\[endImage\]/,
+                    const updatedMessage = messageWithImage.replace(
+                      /\[image\].*?\[endImage\]/s,
                       '',
                     );
 
-                    await flowDynamic([
-                      {
-                        media: imageUrl,
-                        body: updatedMessage,
-                      },
-                    ]);
+                    // await flowDynamic([
+                    //   {
+                    //     media: imageUrl,
+                    //     body: updatedMessage,
+                    //   },
+                    // ]);
+                    const result = await provider.sendImage(
+                      ctx.key.remoteJid,
+                      imageUrl.trim(),
+                      updatedMessage.trim(),
+                    );
+                    console.log('Image result', result);
                     await this.chatService.saveChatMessage(savedChat.id, {
                       message: updatedMessage,
                       isBot: true,
+                      metadata: result,
+                      messageId: result.key?.id,
+                      mediaUrl: imageUrl,
                     });
                   } else {
                     if (chunk.trim()) {
-                      await flowDynamic([{ body: chunk.trim() }]);
+                      // await flowDynamic([{ body: chunk.trim() }]);
+                      const result = await provider.sendText(
+                        ctx.key.remoteJid,
+                        chunk.trim(),
+                      );
                       await this.chatService.saveChatMessage(savedChat.id, {
                         message: chunk.trim(),
                         isBot: true,
+                        metadata: result,
+                        messageId: result.key?.id,
                       });
                     }
                   }
@@ -175,6 +233,14 @@ export class ChatbotService {
               console.log(error);
             }
           }
+
+          // else {
+          //   const result = await provider.sendText(
+          //     ctx.key.remoteJid,
+          //     'Chatbot is paused',
+          //   );
+          //   console.log('Autoresult', result);
+          // }
         });
       },
     );
@@ -202,6 +268,10 @@ export class ChatbotService {
               ?.caption,
           isBot: false,
           mediaUrl: fullPath,
+          metadata: ctx,
+          messageId: (ctx as any).key?.id,
+          inReponseOf: (ctx as any).message?.extendedTextMessage?.contextInfo
+            ?.stanzaId,
           mediaType:
             (ctx as any).message?.imageMessage?.mimetype ??
             ctx.message?.documentWithCaptionMessage?.message?.documentMessage

@@ -62,7 +62,7 @@ export class ChatController {
     await messagesQuery.select('*', { count: 'exact', head: true });
 
     const messages = await messagesQuery
-      .select()
+      .select(`*, in_response_of(*)`)
       .order('created_at', { ascending: false })
       .range(+pageOptions.skip, +(pageOptions.skip + (pageOptions.take - 1)))
       .eq('chat', id);
@@ -76,16 +76,28 @@ export class ChatController {
   @Post(':id/messages')
   async sendMessage(
     @Param('id') id: number,
-    @Body() body: { number: string; message: string },
+    @Body() body: { number: string; message: string; foward?: string },
   ) {
-    await axios.post(`${process.env.BUILDERBOT_URL}/v1/messages`, {
-      number: body.number,
-      message: body.message,
-    });
-    await this.chatService.saveChatMessage(id, {
-      message: body.message,
-      isBot: true,
-    });
+    try {
+      const result = await axios.post(
+        `${process.env.BUILDERBOT_URL}/v1/messages`,
+        {
+          number: body.number,
+          message: body.message,
+          quoted: body.foward,
+        },
+      );
+      await this.chatService.saveChatMessage(id, {
+        message: body.message,
+        isBot: true,
+        messageId: result.data.key?.id,
+        inReponseOf:
+          result.data?.message?.extendedTextMessage?.contextInfo?.stanzaId,
+        metadata: result.data,
+      });
+    } catch (error) {
+      console.log(error);
+    }
   }
   @Get(':id/pause')
   async pauseChat(@Param('id') id: number) {

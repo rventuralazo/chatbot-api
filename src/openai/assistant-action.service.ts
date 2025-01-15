@@ -55,7 +55,7 @@ export class AssistantActionService {
       const productDetail = responseDetail.data;
 
       let price = firstProduct?.price;
-      const weight = getWeightFromProductDetails(productDetail);
+      let weight = getWeightFromProductDetails(productDetail);
       const shippingPrice = getDeliveryPrice(productDetail.shipping_info) ?? 0;
 
       console.log('Weight', weight);
@@ -67,6 +67,7 @@ export class AssistantActionService {
         shipping: shippingPrice,
       });
 
+      if (weight && weight < 0.25) weight = 0.25;
       const priceResponse = await axios.post(
         `${this.loloAPI}/price/calculate`,
         {
@@ -257,7 +258,8 @@ export class AssistantActionService {
         const productDetail = await axios.get(
           `${this.loloAPI}/amazon/detail?domain=com&asin=${amazonProduct.asin}`,
         );
-        const weight = getWeightFromProductDetails(productDetail.data) || null;
+        let weight = getWeightFromProductDetails(productDetail.data) || null;
+        if (weight && weight < 0.25) weight = 0.25;
         const shippingPrice = getDeliveryPrice(
           productDetail.data.shipping_info,
         );

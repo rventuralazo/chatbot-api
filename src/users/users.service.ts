@@ -21,10 +21,12 @@ export class UsersService {
   }
 
   async findAll(pageOptionsDto: PageOptionsDto) {
-    const { data } = await this.supabase.admin.listUsers({
+    const { data, error } = await this.supabase.admin.listUsers({
       page: pageOptionsDto.page,
       perPage: pageOptionsDto.take,
     });
+
+    console.log('Error', error);
 
     // const itemCount = (data as Pagination).total;
 

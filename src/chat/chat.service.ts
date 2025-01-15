@@ -40,7 +40,7 @@ export class ChatService {
     const results = await chats;
 
     const itemCount = results.count;
-    const data = results.data;
+    const data = results.data ?? [];
     const chatList = [];
     for (const chat of data) {
       const lastMessage = await this.getLastMessage(chat.id);
@@ -92,6 +92,7 @@ export class ChatService {
       mediaType,
       messageId,
       inReponseOf,
+      metadata,
     }: {
       message: string;
       isBot: boolean;
@@ -99,6 +100,7 @@ export class ChatService {
       mediaType?: string;
       messageId?: string;
       inReponseOf?: string;
+      metadata: any;
     },
   ) {
     const currentChatInfos = await this.supabase.client
@@ -110,9 +112,9 @@ export class ChatService {
     const inResponseOfExists = await this.supabase.client
       .from('chat_message')
       .select()
-      .eq('whatsapp_ref', messageId);
+      .eq('whatsapp_ref', inReponseOf);
     const inResponseOfMessage =
-      inResponseOfExists.count > 0 ? inReponseOf : null;
+      inResponseOfExists.data.length > 0 ? inReponseOf : null;
 
     await this.supabase.client.from('chat_message').insert({
       chat: chatId,
@@ -122,6 +124,7 @@ export class ChatService {
       media_type: mediaType,
       isRead: isBot ? true : false,
       whatsapp_ref: messageId,
+      whatsapp_data: metadata,
       in_response_of: inResponseOfMessage,
     });
     let responseTime;
@@ -200,7 +203,7 @@ export class ChatService {
       autoAssign ? availableUser?.id : null,
     );
     this.websocket.server.emit('paused_chatbot', {
-      savedChat: result.data.at(0),
+      savedChat: result.data?.at(0),
     });
     return result;
   }
@@ -239,5 +242,13 @@ export class ChatService {
       .from('chat')
       .update({ notes: note })
       .eq('id', chatId);
+  }
+  async getMessageByWhasappRef(whatsappRef: string) {
+    if (!whatsappRef) return null;
+    const result = await this.supabase.client
+      .from('chat_message')
+      .select()
+      .eq('whatsapp_ref', whatsappRef);
+    return result.data?.at(0);
   }
 }
