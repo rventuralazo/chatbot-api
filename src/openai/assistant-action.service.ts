@@ -106,9 +106,13 @@ export class AssistantActionService {
     if (!firstProduct) return 'Producto no encontrado';
 
     let price = firstProduct?.price?.value;
+    let weight = firstProduct?.weight;
+    if (weight) weight = Number.parseFloat(weight);
+    if (weight && weight < 0.25) weight = 0.25;
     const priceResponse = await axios.post(`${this.loloAPI}/price/calculate`, {
       source: 'EBAY',
       price: Number(price),
+      weight: weight ?? null,
     });
     const proructDetail = await axios.get(
       `${this.loloAPI}/ebay/detail/${encodeURI(`v1|${id}|0`)}`,

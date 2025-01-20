@@ -266,7 +266,7 @@ export class ChatbotService {
             (ctx as any).message?.imageMessage?.caption ??
             ctx.message?.documentWithCaptionMessage?.message?.documentMessage
               ?.caption,
-          isBot: false,
+          isBot: !!ctx.key?.fromMe,
           mediaUrl: fullPath,
           metadata: ctx,
           messageId: (ctx as any).key?.id,

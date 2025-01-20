@@ -32,7 +32,6 @@ export class ChatController {
       .select(`*, assignedTo(*)`)
       .eq('id', id)
       .single();
-    console.log(chat);
     return chat.data;
   }
   @Get(':id/event-log')
