@@ -45,6 +45,7 @@ export class OpenAIService {
           actualRun.required_action?.submit_tool_outputs.tool_calls;
         for (const toolCall of toolCalls) {
           const name = toolCall?.function.name;
+          console.log('FUNCTION NAME', name);
           const args = JSON.parse(toolCall?.function?.arguments || '{}');
           let completed = false;
           if (name === 'unShortAmazonUrl') {
@@ -254,13 +255,14 @@ export class OpenAIService {
           function: {
             strict: true,
             name: 'unShortAmazonUrl',
-            description: 'Obtiene la URL original de una URL corta de Amazon',
+            description:
+              'Obtiene la URL original de una URL acortada de Amazon (a.co)',
             parameters: {
               type: 'object',
               properties: {
                 url: {
                   type: 'string',
-                  description: 'URL corta del producto',
+                  description: 'URL acortada del producto',
                 },
               },
               additionalProperties: false,

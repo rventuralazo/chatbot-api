@@ -170,16 +170,18 @@ export class ChatbotService {
                 if (chunk.trim().endsWith('PAUSE_CHATBOT')) {
                   const message = chunk.replace('PAUSE_CHATBOT', '');
                   // await flowDynamic([{ body: message }]);
-                  const result = await provider.sendText(
-                    ctx.key.remoteJid,
-                    message,
-                  );
-                  await this.chatService.saveChatMessage(savedChat.id, {
-                    message: message,
-                    isBot: true,
-                    metadata: result,
-                    messageId: result.key?.id,
-                  });
+                  if (message.trim()) {
+                    const result = await provider.sendText(
+                      ctx.key.remoteJid,
+                      message.trim(),
+                    );
+                    await this.chatService.saveChatMessage(savedChat.id, {
+                      message: message,
+                      isBot: true,
+                      metadata: result,
+                      messageId: result.key?.id,
+                    });
+                  }
                   await this.chatService.pauseChat(savedChat.id);
                 } else {
                   console.log(chunk);
