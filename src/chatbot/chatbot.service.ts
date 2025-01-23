@@ -279,6 +279,21 @@ export class ChatbotService {
             ctx.message?.documentWithCaptionMessage?.message?.documentMessage
               ?.mimetype,
         });
+        if (!savedChat.paused) {
+          await new Promise((resolve) => setTimeout(resolve, 4000));
+          const message = 'Espera un momento mientras revisamos la imagen';
+          const result = await provider.sendText(
+            ctx.key.remoteJid,
+            message.trim(),
+          );
+          await this.chatService.saveChatMessage(savedChat.id, {
+            message: message,
+            isBot: true,
+            metadata: result,
+            messageId: result.key?.id,
+          });
+          await this.chatService.pauseChat(savedChat.id);
+        }
         console.log(fullPath);
       } catch (error) {
         console.log(error);
