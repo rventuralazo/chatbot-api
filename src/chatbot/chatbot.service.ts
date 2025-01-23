@@ -279,7 +279,7 @@ export class ChatbotService {
             ctx.message?.documentWithCaptionMessage?.message?.documentMessage
               ?.mimetype,
         });
-        if (!savedChat.paused) {
+        if (!savedChat.paused && !ctx.key?.fromMe) {
           await new Promise((resolve) => setTimeout(resolve, 4000));
           const message = 'Espera un momento mientras revisamos la imagen';
           const result = await provider.sendText(
