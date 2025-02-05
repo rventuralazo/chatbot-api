@@ -61,7 +61,7 @@ export class ChatService {
       .select()
       .eq('phone', phone);
     let savedChat;
-    if (records.data.length === 0) {
+    if (!records.data || records?.data?.length === 0) {
       const savedChatQuery = await this.supabase.client
         .from('chat')
         .insert({ phone, paused: false, name: name })
