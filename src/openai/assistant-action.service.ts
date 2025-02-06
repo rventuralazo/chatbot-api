@@ -96,39 +96,45 @@ export class AssistantActionService {
 
   async getEbayProductById(id: string): Promise<string> {
     if (!id) return 'No se proporcionó un ID válido.';
+    try {
+      const response = await axios.get(
+        `${this.loloAPI}/ebay/search?limit=20&offset=0&auto_correct=KEYWORD&q=${id}`,
+      );
+      const data = response.data;
+      const firstProduct = data?.itemSummaries?.[0];
 
-    const response = await axios.get(
-      `${this.loloAPI}/ebay/search?limit=20&offset=0&auto_correct=KEYWORD&q=${id}`,
-    );
-    const data = response.data;
-    const firstProduct = data?.itemSummaries?.[0];
+      if (!firstProduct) return 'Producto no encontrado';
 
-    if (!firstProduct) return 'Producto no encontrado';
-
-    let price = firstProduct?.price?.value;
-    let weight = firstProduct?.weight;
-    if (weight) weight = Number.parseFloat(weight);
-    if (weight && weight < 0.25) weight = 0.25;
-    const priceResponse = await axios.post(`${this.loloAPI}/price/calculate`, {
-      source: 'EBAY',
-      price: Number(price),
-      weight: weight ?? null,
-    });
-    const proructDetail = await axios.get(
-      `${this.loloAPI}/ebay/detail/${encodeURI(`v1|${id}|0`)}`,
-    );
-    const priceData = priceResponse.data;
-    price = priceData.data.price;
-    const estimatedDeliveryDate =
-      await this.ebayService.getEstimatedDeliveryDate(proructDetail.data);
-    console.log('Ebay Estimated Delivery Date', estimatedDeliveryDate);
-    return `
-      URL Imagen: ${firstProduct?.image?.imageUrl}
-      ID: ${firstProduct?.id}
-      Título: ${firstProduct?.title}
-      Fecha de Llegada: ${estimatedDeliveryDate.toISOString().split('T')[0]}
-      Precio: ${price}
-    `;
+      let price = firstProduct?.price?.value;
+      let weight = firstProduct?.weight;
+      if (weight) weight = Number.parseFloat(weight);
+      if (weight && weight < 0.25) weight = 0.25;
+      const priceResponse = await axios.post(
+        `${this.loloAPI}/price/calculate`,
+        {
+          source: 'EBAY',
+          price: Number(price),
+          weight: weight ?? null,
+        },
+      );
+      const proructDetail = await axios.get(
+        `${this.loloAPI}/ebay/detail/${encodeURI(`v1|${id}|0`)}`,
+      );
+      const priceData = priceResponse.data;
+      price = priceData.data.price;
+      const estimatedDeliveryDate =
+        await this.ebayService.getEstimatedDeliveryDate(proructDetail.data);
+      console.log('Ebay Estimated Delivery Date', estimatedDeliveryDate);
+      return `
+        URL Imagen: ${firstProduct?.image?.imageUrl}
+        ID: ${firstProduct?.id}
+        Título: ${firstProduct?.title}
+        Fecha de Llegada: ${estimatedDeliveryDate.toISOString().split('T')[0]}
+        Precio: ${price}
+      `;
+    } catch {
+      return 'No se ha podido obtener la información del producto';
+    }
   }
 
   async getSheinProductById(id: string): Promise<string> {
@@ -232,6 +238,16 @@ export class AssistantActionService {
       return 'En este momento no se puede consultar sus pedidos, intente mas tarde, revisa que tu numero este registrado en tu cuenta de CompraLolo';
     }
   }
+  async searchEbayProductByName(searchTerm: string): Promise<any> {
+    try {
+      const respnse = await axios.get(
+        `${this.loloAPI}/ebay/search?limit=20&offset=0&auto_correct=KEYWORD&q=${searchTerm}`,
+      );
+      return respnse;
+    } catch {
+      console.log('Error al buscar el producto en ebay');
+    }
+  }
 
   async searchProductByName(name: string): Promise<string> {
     if (!name) return 'No se proporcionó un nombre de producto válido.';
@@ -244,18 +260,16 @@ export class AssistantActionService {
         axios.get(
           `${this.loloAPI}/amazon/search?domain=com&query=${searchTerm}&page=1`,
         ),
-        axios.get(
-          `${this.loloAPI}/ebay/search?limit=20&offset=0&auto_correct=KEYWORD&q=${searchTerm}`,
-        ),
+        this.searchEbayProductByName(searchTerm),
         axios.get(
           `${this.loloAPI}/shein/search?language=en&country=US&currency=USD&keywords=${searchTerm}&sort=7&limit=20&page=1`,
         ),
       ]);
 
       const allResults = [];
-      const amazonData = amazonResults.data.results?.slice(0, 3) ?? [];
-      const ebayData = ebayResults.data.itemSummaries?.slice(0, 3) ?? [];
-      const sheinData = sheinResults.data.info?.products?.slice(0, 3) ?? [];
+      const amazonData = amazonResults?.data?.results?.slice(0, 3) ?? [];
+      const ebayData = ebayResults?.data?.itemSummaries?.slice(0, 3) ?? [];
+      const sheinData = sheinResults?.data?.info?.products?.slice(0, 3) ?? [];
 
       for (const amazonProduct of amazonData) {
         if (!amazonProduct.asin) continue;
@@ -298,45 +312,50 @@ export class AssistantActionService {
         }
       }
       for (const ebayProduct of ebayData) {
-        const priceResponse = await axios.post(
-          `${this.loloAPI}/price/calculate`,
-          {
-            source: 'EBAY',
-            price: Number(ebayProduct.price.value),
-          },
-        );
-        const priceData = priceResponse.data;
-        const proructDetail = await axios.get(
-          `${this.loloAPI}/ebay/detail/${encodeURI(`${ebayProduct.itemId}`)}`,
-        );
-        const estimatedDeliveryDate =
-          await this.ebayService.getEstimatedDeliveryDate(proructDetail.data);
-        allResults.push(`
-          URL Imagen: ${ebayProduct.image?.imageUrl}
-          ID: ${ebayProduct.itemId}
-          Título: ${ebayProduct.title}
-          Precio: ${priceData.data.price}
-          Fecha de Llegada: ${estimatedDeliveryDate.toISOString().split('T')[0]}
-          Tienda: Ebay
-        `);
+        try {
+          const priceResponse = await axios.post(
+            `${this.loloAPI}/price/calculate`,
+            {
+              source: 'EBAY',
+              price: Number(ebayProduct.price.value),
+            },
+          );
+          const priceData = priceResponse.data;
+          const proructDetail = await axios.get(
+            `${this.loloAPI}/ebay/detail/${encodeURI(`${ebayProduct.itemId}`)}`,
+          );
+          const estimatedDeliveryDate =
+            await this.ebayService.getEstimatedDeliveryDate(proructDetail.data);
+          allResults.push(`
+            URL Imagen: ${ebayProduct.image?.imageUrl}
+            ID: ${ebayProduct.itemId}
+            Título: ${ebayProduct.title}
+            Precio: ${priceData.data.price}
+            Fecha de Llegada: ${estimatedDeliveryDate.toISOString().split('T')[0]}
+            Tienda: Ebay
+          `);
+        } catch (error) {
+          console.log('Error al obtener el producto EBAY', error);
+        }
       }
 
       for (const sheinProduct of sheinData) {
-        const productDetail = await axios.get(
-          `${this.loloAPI}/shein/detail?language=en&country=US&currency=USD&goods_id=${sheinProduct?.goods_id}`,
-        );
-        const price = productDetail.data.info?.sale_price?.amount;
-        const priceResponse = await axios.post(
-          `${this.loloAPI}/price/calculate`,
-          {
-            source: 'SHEIN',
-            price: Number(price),
-          },
-        );
-        const priceData = priceResponse.data;
-        const estimatedDeliveryDate =
-          await this.sheinService.getEstimatedDeliveryDate();
-        allResults.push(`
+        try {
+          const productDetail = await axios.get(
+            `${this.loloAPI}/shein/detail?language=en&country=US&currency=USD&goods_id=${sheinProduct?.goods_id}`,
+          );
+          const price = productDetail.data.info?.sale_price?.amount;
+          const priceResponse = await axios.post(
+            `${this.loloAPI}/price/calculate`,
+            {
+              source: 'SHEIN',
+              price: Number(price),
+            },
+          );
+          const priceData = priceResponse.data;
+          const estimatedDeliveryDate =
+            await this.sheinService.getEstimatedDeliveryDate();
+          allResults.push(`
           URL Imagen: ${sheinProduct?.goods_img}
           ID: ${sheinProduct?.goods_id}
           Título: ${sheinProduct?.goods_name}
@@ -344,6 +363,9 @@ export class AssistantActionService {
           Fecha de Llegada: ${estimatedDeliveryDate.toISOString().split('T')[0]}
           Tienda: Shein
         `);
+        } catch (error) {
+          console.log('Error al obtener el producto SHEIN', error);
+        }
       }
 
       return allResults.join('\n');

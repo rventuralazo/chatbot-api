@@ -14,7 +14,7 @@ import { OpenAIService } from '../openai/openai.service';
 import { WebsocketGateway } from '../websocket/websocket.gateway';
 import { createMessageQueue, QueueConfig } from './utils/fast-entires';
 import { FilesService } from '../files/files.service';
-const queueConfig: QueueConfig = { gapMilliseconds: 5000 };
+const queueConfig: QueueConfig = { gapMilliseconds: 10000 };
 const enqueueMessage = createMessageQueue(queueConfig);
 @Injectable()
 export class ChatbotService {
@@ -152,11 +152,10 @@ export class ChatbotService {
                 state,
                 ctx.from,
               );
-              const chunks = response.split(/\n\s*\n/);
+              const chunks = response?.split(/\n\s*\n/) ?? [];
               for (const chunk of chunks) {
                 await new Promise((resolve) => setTimeout(resolve, 1000));
                 await typing(ctx, provider);
-
                 // if (chunk.trim().endsWith('PAUSE_CHATBOT')) {
                 //   const message = chunk.replace('PAUSE_CHATBOT', '');
                 //   await flowDynamic([{ body: message }]);
